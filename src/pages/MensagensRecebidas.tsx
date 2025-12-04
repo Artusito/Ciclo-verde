@@ -9,12 +9,10 @@ import {
   DollarSign, 
   LogOut, 
   Menu, 
-  Search,
   Check,
   Clock,
   User,
   Calendar,
-  Filter
 } from "lucide-react";
 
 import { Link } from "react-router-dom";

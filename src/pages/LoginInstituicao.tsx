@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, Lock, LogIn, ArrowRight, Mail, KeyRound } from "lucide-react";
+import { Building2, Lock, ArrowRight, Mail } from "lucide-react";
 import Button from "../components/Button";
 import supabase from "../services/supabase";
 

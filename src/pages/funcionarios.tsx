@@ -4,7 +4,6 @@ import {
   Plus, 
   Trash2, 
   Search, 
-  MoreVertical, 
   LayoutDashboard, 
   MessageSquare, 
   Building2, 

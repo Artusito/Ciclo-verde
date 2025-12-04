@@ -1,27 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { 
-  Building2, 
   Mail, 
+  AlertCircle,
   Phone, 
-  Hash, 
+  Send,
   MapPin, 
-  Save, 
-  ArrowLeft, 
-  LayoutDashboard, 
+  Filter,
+  User,
+  Search,
   MessageSquare, 
-  Users,
   Clock,
   Recycle, 
-  ShoppingCart, 
-  DollarSign, 
-  LogOut, 
-  Menu, 
-  FileText, 
+  X,
   CheckCircle2 
 } from "lucide-react";
 
-import Input from "../components/Input";
-import Button from "../components/button";
 import supabase from "../services/supabase";
 import { Link } from "react-router-dom"; 
 

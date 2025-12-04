@@ -4,7 +4,6 @@ import {
   Plus, 
   Trash2, 
   Users,
-  Search, 
   LayoutDashboard, 
   MessageSquare, 
   Building2, 
@@ -15,7 +14,6 @@ import {
   Calendar,
   FileText,
   Tag,
-  X
 } from "lucide-react";
 import supabase from "../services/supabase";
 import { Link } from "react-router-dom";

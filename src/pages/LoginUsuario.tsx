@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom"; 
-import { User, Lock, LogIn, ArrowRight, ChevronDown, KeyRound } from "lucide-react";
+import { User, Lock, LogIn, ArrowRight } from "lucide-react";
 import Button from "../components/Button";
 import supabase from "../services/supabase";
 

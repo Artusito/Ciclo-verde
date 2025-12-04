@@ -2,7 +2,7 @@
   import { Building2, Lock, MapPin, User, Phone, Mail, Hash, CheckCircle2, Search, ArrowLeft, FileText } from "lucide-react";
 
   // import Input from "../components/Input";
-  import Button from "../components/button";
+  import Button from "../components/Button";
   import supabase from "../services/supabase";
 
 

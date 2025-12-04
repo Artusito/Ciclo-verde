@@ -7,8 +7,6 @@ import {
   MapPin, 
   MessageSquare, 
   X, 
-  Phone, 
-  Mail, 
   Send, 
   Recycle 
 } from "lucide-react";
@@ -107,9 +105,6 @@ export default function DashboardUsuario() {
     setModalOpen(false);
   }
 
-  // -------------------------------------------------------------
-  // R E T O R N O
-  // -------------------------------------------------------------
   return (
     <div className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-800">
 

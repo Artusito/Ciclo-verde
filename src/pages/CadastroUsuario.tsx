@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { User, Lock, Building2,  Calendar, MapPin, Phone, Mail, Hash, CheckCircle2, Search, ChevronDown, ArrowLeft } from "lucide-react";
-
-
 import supabase from "../services/supabase";
+
 
 const Button = ({ children, disabled, type = "button", className = "" }: any) => (
   <button
@@ -62,14 +61,6 @@ const Input = ({ label, name, type = "text", required, maxLength, as, children, 
     </div>
   );
 };
-// =================================================================================
-// FIM DOS COMPONENTES INTERNOS
-// =================================================================================
-
-
-// ----------------------------------------------------------------------------------
-// 🔵 NOVO FORMULÁRIO DE INSTITUIÇÃO (Versão simplificada para este arquivo)
-// ----------------------------------------------------------------------------------
 
 const UsuarioForm = () => {
     const [loading, setLoading] = useState(false);
@@ -120,7 +111,7 @@ const UsuarioForm = () => {
         setStatus(null);
 
         const form = new FormData(e.target as HTMLFormElement);
-        const data = Object.fromEntries(form);
+        const data = Object.fromEntries(form.entries());
 
         if (!validarCPF(data.cpf_usu as string)) {
           alert("CPF Inválido! Por favor verifique os números.");
@@ -270,12 +261,8 @@ const UsuarioForm = () => {
 };
 
 
-// ----------------------------------------------------------------------------------
-// 🔴 NOVO COMPONENTE PRINCIPAL COM O SWITCH (EXPORTADO)
-// ----------------------------------------------------------------------------------
-
 export default function InitialCadastroPage() {
-  const [activeForm, setActiveForm] = useState<'user' | 'institution'>('user');
+  const [activeForm, ] = useState<'user' | 'institution'>('user');
 
   return (
     <div className="w-full min-h-screen flex flex-col items-center justify-center bg-green-50 p-4 sm:p-8 font-sans selection:bg-green-100 selection:text-green-700">
@@ -290,6 +277,7 @@ export default function InitialCadastroPage() {
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
             >
+           
             <User size={18} /> Sou Pessoa Física
             </a>
             <a // Transforma em link
@@ -304,14 +292,11 @@ export default function InitialCadastroPage() {
             </a>
         </div>
 
-        {/* Renderização Condicional do Formulário */}
-        <div className="w-full max-w-4xl">
-            {activeForm === 'user' 
-            ? <UsuarioForm /> 
-            : <InstituicaoForm />}
-        </div>
+        
         
         {/* Rodapé Adicional (Link para Login) */}
+             <UsuarioForm />
+
         <p className="mt-6 text-sm text-slate-500">
             Já tem conta? <a href="/login-usuario" className="text-emerald-600 font-semibold hover:underline">Faça login.</a>
         </p>

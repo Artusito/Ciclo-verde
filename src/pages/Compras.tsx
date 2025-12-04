@@ -3,7 +3,6 @@ import {
   ShoppingCart,
   Plus, 
   Trash2, 
-  Search, 
   LayoutDashboard, 
   Users,
   MessageSquare, 
@@ -12,11 +11,8 @@ import {
   DollarSign, 
   LogOut, 
   Menu,
-  Calendar,
-  Scale, 
-  Tag,
-  User
 } from "lucide-react";
+
 import Input from "../components/Input";
 import supabase from "../services/supabase";
 import { Link } from "react-router-dom";
@@ -212,7 +208,7 @@ export default function DashboardInstCompras() {
              
              <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
                 <div className="md:col-span-2">
-                   <Input label="Catador" name="codCat" as="select" value={codCat} onChange={(e: any) => setCodCat(e.target.value)} required icon={User}>
+                   <Input label="Catador" name="codCat" as="select" value={codCat} onChange={(e: any) => setCodCat(e.target.value)} required>
                       <option value="">Selecione o Catador...</option>
                       {catadores.map((cat: any) => (
                         <option key={cat.cod_cat} value={cat.cod_cat}>{cat.nome_cat}</option>
@@ -221,15 +217,15 @@ export default function DashboardInstCompras() {
                 </div>
 
                 <div className="md:col-span-2">
-                   <Input label="Material" name="material" value={material} onChange={(e: any) => setMaterial(e.target.value)} required placeholder="Ex: Plástico" icon={Tag} />
+                   <Input label="Material" name="material" value={material} onChange={(e: any) => setMaterial(e.target.value)} required placeholder="Ex: Plástico"  />
                 </div>
                 
                 <div>
-                   <Input label="Qtd (kg)" type="number" step="0.1" value={quantidade} onChange={(e: any) => setQuantidade(e.target.value)} required placeholder="0.0" icon={Scale} />
+                   <Input label="Qtd (kg)" type="number" step="0.1" value={quantidade} onChange={(e: any) => setQuantidade(e.target.value)} required placeholder="0.0"  />
                 </div>
                 
                 <div>
-                   <Input label="Valor (R$)" type="number" step="0.01" value={valor} onChange={(e: any) => setValor(e.target.value)} required placeholder="0.00" icon={DollarSign} />
+                   <Input label="Valor (R$)" type="number" step="0.01" value={valor} onChange={(e: any) => setValor(e.target.value)} required placeholder="0.00"  />
                 </div>
 
                 <div className="md:col-span-6 flex justify-end mt-2">
