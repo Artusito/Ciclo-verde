@@ -1,347 +1,438 @@
 import React, { useEffect, useState } from "react";
 import { 
+  Building2, 
   Mail, 
-  AlertCircle,
   Phone, 
-  Send,
+  Hash, 
   MapPin, 
-  Filter,
-  User,
-  Search,
+  Save, 
+  LayoutDashboard, 
   MessageSquare, 
-  Clock,
+  Users, 
   Recycle, 
-  X,
-  CheckCircle2 
+  ShoppingCart, 
+  DollarSign, 
+  LogOut, 
+  Menu, 
+  FileText, 
+  CheckCircle2,
+  AlertTriangle 
 } from "lucide-react";
 
 import supabase from "../services/supabase";
 import { Link } from "react-router-dom"; 
 
-export default function DashboardUsuario() {
-  const [instituicoes, setInstituicoes] = useState<any[]>([]);
-  const [filteredInstituicoes, setFilteredInstituicoes] = useState<any[]>([]);
-  const [busca, setBusca] = useState("");
-  const [categoria, setCategoria] = useState("Todos");
+
+const Button = ({ children, disabled, type = "button", className = "" }: any) => (
+  <button
+    type={type}
+    disabled={disabled}
+    className={`w-full py-3.5 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-200/40 
+    transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 active:shadow-md disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:shadow-none
+    flex items-center justify-center gap-2 text-sm uppercase tracking-wider ${className}`}
+  >
+    {children}
+  </button>
+);
+
+
+const Input = ({ label, name, type = "text", required, maxLength, value, onChange, disabled, icon: Icon, placeholder }: any) => {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-xs font-semibold text-slate-600 ml-1 uppercase tracking-wider flex items-center gap-1">
+        {label} {required && <span className="text-rose-500 text-lg leading-none">*</span>}
+      </label>
+      <div className="relative group">
+        {Icon && (
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors duration-300">
+            <Icon size={20} strokeWidth={1.8} />
+          </div>
+        )}
+        <input
+          type={type}
+          name={name}
+          required={required}
+          maxLength={maxLength}
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+          className={`w-full bg-white border-2 border-slate-100 text-slate-800 text-sm rounded-xl 
+          focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 
+          block p-3.5 ${Icon ? 'pl-12' : 'pl-4'} transition-all duration-200 outline-none font-medium placeholder:text-slate-300 shadow-sm group-hover:border-slate-200 ${disabled ? 'bg-slate-50 opacity-80 cursor-not-allowed' : ''}`}
+          placeholder={placeholder}
+        />
+      </div>
+    </div>
+  );
+};
+
+// Subcomponente SidebarItem
+function SidebarItem({ to, icon: Icon, label, active, isOpen }: any) {
+  return (
+    <Link 
+      to={to} 
+      className={`
+        flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group relative
+        ${active ? 'bg-emerald-800 text-white shadow-lg shadow-emerald-900/50' : 'text-emerald-100 hover:bg-emerald-800/50 hover:text-white'}
+        ${!isOpen && 'justify-center'}
+      `}
+    >
+      <Icon size={20} className={active ? 'text-emerald-400' : 'group-hover:text-emerald-400'} />
+      
+      {isOpen && <span className="font-medium text-sm">{label}</span>}
+      
+      {!isOpen && (
+        <div className="absolute left-14 bg-emerald-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-md">
+          {label}
+        </div>
+      )}
+    </Link>
+  );
+}
+
+
+type InstituicaoData = {
+  cnpj: string;
+  nome_ins: string;
+  razao_soc: string;
+  email_ins: string;
+  telefone_ins: string;
+  endereco_ins: string;
+  cidade_ins: string;
+  uf_ins: string;
+  numero_ins: string;
+};
+
+export default function PerfilInstituicao() {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState("Usuário");
-  
-  // Estado do Modal e Toast
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedInst, setSelectedInst] = useState<any>(null);
-  const [mensagem, setMensagem] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [toast, setToast] = useState<{ type: 'success' | 'error', msg: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const userCpf = localStorage.getItem("usuario_cpf") || "mock_cpf";
+  const [formData, setFormData] = useState<InstituicaoData>({
+    cnpj: "",
+    nome_ins: "",
+    razao_soc: "",
+    email_ins: "",
+    telefone_ins: "",
+    endereco_ins: "",
+    cidade_ins: "",
+    uf_ins: "",
+    numero_ins: "",
+  });
 
-  const categorias = ["Todos", "Plástico", "Papel", "Metal", "Vidro", "Eletrônicos"];
-
+  // -------- CARREGAR DADOS ----------
   useEffect(() => {
-    loadUser();
-    loadInstituicoes();
+    async function fetchInstituicao() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const email = localStorage.getItem("instituicao_email") || "contato@ecorecicle.com"; 
+
+        if (!email) {
+          throw new Error("Sessão inválida. E-mail não encontrado.");
+        }
+
+        const { data, error: sbError } = await supabase
+          .from("instituicao")
+          .select("cnpj, nome_ins, razao_soc, email_ins, telefone_ins, endereco_ins, cidade_ins, uf_ins, numero_ins")
+          .eq("email_ins", email)
+          .single();
+
+        if (sbError) throw sbError;
+
+        setFormData(data as InstituicaoData); 
+      } catch (err: any) {
+        console.error("Erro:", err);
+        setError(err.message || "Erro ao carregar perfil.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchInstituicao();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Filtragem local (Busca + Categoria)
-  useEffect(() => {
-    let result = instituicoes;
-
-    // Filtro por texto
-    if (busca) {
-      const term = busca.toLowerCase();
-      result = result.filter((i: any) => 
-         i.nome_ins.toLowerCase().includes(term) || 
-         i.cidade_ins.toLowerCase().includes(term)
-      );
+  // -------- LOGOUT ----------
+  async function handleLogout() {
+    try {
+      await supabase.auth.signOut();
+      localStorage.clear();
+      window.location.href = "/login-instituicao";
+    } catch (error) {
+      console.error("Erro ao sair:", error);
+      alert("Erro ao tentar sair.");
     }
-
-    // Filtro por categoria
-    if (categoria !== "Todos") {
-      result = result.filter((i: any) => 
-        i.materiais && i.materiais.includes(categoria)
-      );
-    }
-
-    setFilteredInstituicoes(result);
-  }, [busca, categoria, instituicoes]);
-
-  // Função auxiliar para mostrar Toast
-  const showToast = (type: 'success' | 'error', msg: string) => {
-    setToast({ type, msg });
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  async function loadUser() {
-    if (!userCpf || userCpf === "mock_cpf") {
-        setUserName("Visitante"); 
-        if (userCpf === "mock_cpf") setUserName("Carlos Eduardo");
-        return;
-    }
-    const { data, error } = await supabase
-      .from("usuario")
-      .select("nome_usu")
-      .eq("cpf_usu", userCpf)
-      .maybeSingle();
-
-    if (!error && data) setUserName(data.nome_usu);
   }
 
-  async function loadInstituicoes() {
-    setLoading(true);
-    // Carrega tudo e filtra no front para performance em listas pequenas/médias
-    await supabase.from("instituicao")
-      .select("*")
-      .ilike("cidade_ins", `%%`) 
-      .then(({ data }: any) => {
-        setInstituicoes(data || []);
-        setFilteredInstituicoes(data || []); // Inicializa filtrado
-        setLoading(false);
-      });
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   }
 
-  function abrirModal(inst: any) {
-    setSelectedInst(inst);
-    setModalOpen(true);
-    setMensagem("");
-  }
-
-  async function enviarMensagem(e: React.FormEvent) {
+  // -------- SALVAR DADOS ----------
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!mensagem.trim()) return;
-    setEnviando(true);
+    setSaving(true);
+    setError(null);
+    setSuccessMsg(null);
 
-    const { error } = await supabase.from("mensagem").insert({
-      descricao_men: mensagem,
-      assunto_men: "Contato via App",
-      cnpj: selectedInst.cnpj,
-      cpf_usu: userCpf,
-      turno_men: "Integral",
-      emissao_men: new Date()
-    }).then((res: any) => res);
+    try {
+      const email = formData.email_ins; 
+      if (!email) throw new Error("Email da instituição não disponível para salvar.");
 
-    setEnviando(false);
+      const { cnpj, email_ins, ...updatableData } = formData;
 
-    if (error) {
-      showToast('error', "Erro ao enviar mensagem.");
-    } else {
-      showToast('success', "Mensagem enviada com sucesso!");
-      setModalOpen(false);
+      const { error: updateError } = await supabase
+        .from("instituicao")
+        .update(updatableData)
+        .eq("email_ins", email)
+        .then((res: any) => res); // Ajuste para o mock/real
+
+      if (updateError) throw updateError;
+
+      setSuccessMsg("Dados atualizados com sucesso!");
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Erro ao salvar. Tente novamente.");
+    } finally {
+      setSaving(false);
     }
   }
 
-  return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 pb-20 relative overflow-x-hidden">
-      
-      {/* TOAST NOTIFICATION */}
-      {toast && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-lg flex items-center gap-2 animate-in slide-in-from-top-5 duration-300 ${toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`}>
-          {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-          <span className="text-sm font-semibold">{toast.msg}</span>
-        </div>
-      )}
-
-      {/* HEADER */}
-      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md px-6 py-4 flex justify-between items-center shadow-sm border-b border-slate-100">
-        <div className="flex items-center gap-2.5">
-           <div className="w-9 h-9 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center text-white shadow-emerald-200 shadow-lg transform rotate-3">
-              <Recycle size={20} strokeWidth={2.5} />
-           </div>
-           <div>
-             <h1 className="text-lg font-bold leading-none text-slate-800">Ciclo Verde</h1>
-             <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Doador</p>
-           </div>
-        </div>
-        
-        <Link to="/perfil-usuario" className="w-10 h-10 bg-slate-100 hover:bg-emerald-50 rounded-full flex items-center justify-center text-slate-600 hover:text-emerald-600 transition-colors border border-slate-200">
-           <User size={20} />
-        </Link>
-      </header>
-
-      <div className="px-6 pt-8 max-w-5xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-800 mb-1">
-            Olá, <span className="text-emerald-600">{userName.split(' ')[0]}.</span>
-          </h1>
-          <p className="text-sm text-slate-500">O que você vai reciclar hoje?</p>
-        </div>
-
-        {/* BARRA DE BUSCA */}
-        <div className="relative mb-6 group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <Search className="text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={20} />
-          </div>
-          <input 
-            type="text" 
-            placeholder="Buscar por nome da cooperativa ou cidade..." 
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-12 pr-4 shadow-sm outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 transition-all placeholder:text-slate-400 text-sm"
-          />
-        </div>
-
-        {/* FILTROS (Categorias) */}
-        <div className="flex gap-3 overflow-x-auto pb-6 scrollbar-hide -mx-6 px-6 sm:mx-0 sm:px-0">
-          {categorias.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategoria(cat)}
-              className={`
-                whitespace-nowrap px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 border
-                ${categoria === cat 
-                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-200' 
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:bg-emerald-50'}
-              `}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        {/* LISTA DE INSTITUIÇÕES (GRID) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pb-10">
-          {loading ? (
-             [1,2,3].map(i => <div key={i} className="h-48 bg-white rounded-3xl animate-pulse shadow-sm border border-slate-100" />)
-          ) : filteredInstituicoes.length === 0 ? (
-             <div className="col-span-full text-center py-16 bg-white rounded-3xl border border-dashed border-slate-200">
-               <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                 <Filter size={32} className="text-slate-300" />
-               </div>
-               <p className="text-slate-500 font-medium">Nenhuma instituição encontrada.</p>
-               <p className="text-xs text-slate-400 mt-1">Tente mudar os filtros ou a busca.</p>
-             </div>
-          ) : (
-            filteredInstituicoes.map((inst) => (
-              <div key={inst.cnpj} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full group relative overflow-hidden">
-                
-                {/* Efeito de fundo */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-50 to-transparent rounded-bl-full -mr-8 -mt-8 opacity-50 group-hover:opacity-100 transition-opacity"></div>
-
-                <div className="relative z-10 flex-1">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="font-bold text-lg text-slate-800 leading-tight mb-1">{inst.nome_ins}</h3>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase tracking-wide">
-                        <Clock size={10} /> {inst.horario || "08:00 - 18:00"}
-                      </span>
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center text-emerald-500">
-                      <Recycle size={16} />
-                    </div>
-                  </div>
-                  
-                  <div className="text-sm text-slate-500 mb-6 space-y-2">
-                    <p className="flex items-start gap-2">
-                      <MapPin size={16} className="text-emerald-500 shrink-0 mt-0.5" /> 
-                      <span className="line-clamp-2">{inst.endereco_ins}, {inst.cidade_ins} - {inst.uf_ins}</span>
-                    </p>
-                  </div>
-
-                  {/* Materiais (Tags Limitas) */}
-                  <div className="flex flex-wrap gap-1.5 mb-6">
-                    {inst.materiais?.split(',').slice(0, 3).map((mat: string, idx: number) => (
-                      <span key={idx} className="px-2 py-1 rounded bg-slate-50 text-slate-600 text-[10px] font-medium border border-slate-100">
-                        {mat.trim()}
-                      </span>
-                    ))}
-                    {inst.materiais?.split(',').length > 3 && (
-                      <span className="px-2 py-1 rounded bg-slate-50 text-slate-400 text-[10px] font-medium border border-slate-100">
-                        +{inst.materiais.split(',').length - 3}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-50 mt-auto">
-                  <button 
-                    onClick={() => abrirModal(inst)}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold py-3 px-4 rounded-xl text-sm shadow-md shadow-emerald-200/50 flex items-center justify-center gap-2 transition-all"
-                  >
-                    <MessageSquare size={16} /> Entrar em Contato
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
+  // -------- TELA DE CARREGAMENTO ----------
+  if (loading) {
+    return (
+      <div className="flex w-full h-screen items-center justify-center bg-slate-50 font-sans">
+        <div className="flex flex-col items-center">
+            <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="mt-4 text-emerald-600 font-medium text-lg">Carregando perfil...</p>
         </div>
       </div>
+    );
+  }
 
-      {/* ==================================================================
-          MODAL DE CONTATO (Clean & Modern)
-      ================================================================== */}
-      {modalOpen && selectedInst && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white rounded-t-[2rem] sm:rounded-3xl w-full max-w-md shadow-2xl overflow-hidden relative animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+  // -------- LAYOUT PRINCIPAL ----------
+  return (
+    <div className="flex w-full h-screen bg-slate-50 font-sans text-slate-800 overflow-hidden">
+      
+      {/* Reset Global */}
+      <style>{`body, html, #root { margin: 0; padding: 0; width: 100%; height: 100%; }`}</style>
+      
+      {/* SIDEBAR */}
+      <aside 
+        className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-emerald-900 text-white transition-all duration-300 flex flex-col shadow-xl z-20 relative shrink-0`}
+      >
+        <div className="p-6 flex items-center justify-between">
+          {sidebarOpen ? (
+            <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
+              <Recycle className="text-emerald-400" /> Ciclo Verde
+            </h1>
+          ) : (
+             <Recycle className="mx-auto text-emerald-400" />
+          )}
+        </div>
+
+        <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto custom-scrollbar">
+          <SidebarItem to="/dashboard-instituicao" icon={LayoutDashboard} label="Dashboard" isOpen={sidebarOpen} />
+          <SidebarItem to="/dashboard-instituicao/mensagens-recebidas" icon={MessageSquare} label="Mensagens" isOpen={sidebarOpen} />
+          <SidebarItem to="/dashboardinst-Instituicao" icon={Building2} label="Instituição" active isOpen={sidebarOpen} />
+          <SidebarItem to="/dashboard-instituicao/funcionarios" icon={Users} label="Funcionários" isOpen={sidebarOpen} />
+          <SidebarItem to="/dashboard-instituicao/Catadores" icon={Recycle} label="Catadores" isOpen={sidebarOpen} />
+          <SidebarItem to="/dashboard-instituicao/Compras" icon={ShoppingCart} label="Compras" isOpen={sidebarOpen} />
+          <SidebarItem to="/dashboard-instituicao/Custos" icon={DollarSign} label="Custos" isOpen={sidebarOpen} />
+        </nav>
+
+        <div className="p-4 border-t border-emerald-800">
+          <button
+            onClick={handleLogout}
+            className={`w-full flex items-center ${sidebarOpen ? 'justify-start' : 'justify-center'} gap-3 p-3 rounded-xl text-emerald-200 hover:bg-emerald-800 hover:text-white transition-colors`}
+          >
+            <LogOut size={20} />
+            {sidebarOpen && <span>Sair</span>}
+          </button>
+        </div>
+      </aside>
+
+      {/* CONTEÚDO PRINCIPAL (Formulário) */}
+      <main className="flex-1 flex flex-col h-screen overflow-hidden relative">
+        
+        {/* Header */}
+        <header className="bg-white h-20 shadow-sm flex items-center justify-between px-8 z-10 shrink-0">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 text-slate-400 hover:bg-slate-100 rounded-lg lg:hidden"
+            >
+              <Menu />
+            </button>
             
-            {/* Header Modal */}
-            <div className="bg-slate-50 px-6 py-5 border-b border-slate-100 flex justify-between items-center sticky top-0 z-20">
-               <div>
-                 <h2 className="text-lg font-bold text-slate-800 line-clamp-1">{selectedInst.nome_ins}</h2>
-                 <p className="text-xs text-slate-500 flex items-center gap-1">
-                   <MapPin size={10} /> {selectedInst.cidade_ins}
-                 </p>
-               </div>
-               <button 
-                 onClick={() => setModalOpen(false)}
-                 className="w-8 h-8 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
-               >
-                 <X size={16} />
-               </button>
+            <div className="flex flex-col">
+              <h2 className="text-xl font-bold text-slate-800">Perfil da Instituição</h2>
+              <p className="text-xs text-slate-500">Visualize e edite os dados cadastrais da sua empresa</p>
             </div>
+          </div>
 
-            {/* Conteúdo Modal (Scrollable) */}
-            <div className="p-6 overflow-y-auto custom-scrollbar">
-               
-               {/* Cards de Info */}
-               <div className="grid grid-cols-2 gap-3 mb-6">
-                  <a href={`tel:${selectedInst.telefone_ins}`} className="bg-emerald-50/50 hover:bg-emerald-50 p-3 rounded-2xl border border-emerald-100 transition-colors group">
-                     <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-emerald-500 mb-2 shadow-sm group-hover:scale-110 transition-transform"><Phone size={16}/></div>
-                     <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Telefone</p>
-                     <p className="text-xs font-semibold text-slate-700 truncate">{selectedInst.telefone_ins}</p>
-                  </a>
-                  <div className="bg-blue-50/50 p-3 rounded-2xl border border-blue-100">
-                     <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-blue-500 mb-2 shadow-sm"><Mail size={16}/></div>
-                     <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Email</p>
-                     <p className="text-xs font-semibold text-slate-700 truncate">{selectedInst.email_ins}</p>
+          <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 font-bold border-2 border-white shadow-sm">
+             {formData.nome_ins ? formData.nome_ins.charAt(0) : "I"}
+          </div>
+        </header>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 w-full bg-slate-50">
+          
+          <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg border border-slate-100">
+
+            <div className="p-8">
+              
+              {/* Notificações */}
+              {error && (
+                <div className="bg-rose-50 border border-rose-100 text-rose-600 p-4 rounded-xl mb-6 flex items-center gap-3">
+                  <AlertTriangle size={20} />
+                  <div>
+                    <p className="font-semibold">Erro ao carregar/salvar:</p>
+                    <p className="text-sm">{error}</p>
                   </div>
-               </div>
+                </div>
+              )}
 
-               <div className="mb-4">
-                 <label className="text-sm font-bold text-slate-800 mb-1 block">Mensagem</label>
-                 <p className="text-xs text-slate-500 mb-3">Combine a entrega ou tire dúvidas.</p>
-                 
-                 <form onSubmit={enviarMensagem}>
-                   <div className="relative">
-                     <textarea
-                       className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none resize-none min-h-[140px] transition-all"
-                       placeholder="Olá, gostaria de saber se vocês coletam..."
-                       value={mensagem}
-                       onChange={(e) => setMensagem(e.target.value)}
-                       required
-                     ></textarea>
-                     <div className="absolute bottom-3 right-3 text-xs text-slate-400 pointer-events-none">
-                        {mensagem.length} chars
-                     </div>
-                   </div>
-                   
-                   <button 
-                     type="submit"
-                     disabled={enviando}
-                     className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 transition-all disabled:opacity-70 disabled:cursor-not-allowed active:scale-[0.98]"
-                   >
-                     {enviando ? (
-                       <span className="flex items-center gap-2"><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> Enviando...</span>
-                     ) : (
-                       <><Send size={18} /> Enviar Mensagem</>
-                     )}
-                   </button>
-                 </form>
-               </div>
+              {successMsg && (
+                <div className="bg-emerald-50 border border-emerald-100 text-emerald-600 p-4 rounded-xl mb-6 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <CheckCircle2 size={20} />
+                  <p className="font-semibold text-sm">{successMsg}</p>
+                </div>
+              )}
 
+              <form onSubmit={handleSave} className="space-y-8">
+
+                {/* 1. IDENTIFICAÇÃO */}
+                <div>
+                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2 border-b border-slate-100 pb-2">
+                      <Building2 size={20} className="text-emerald-500" /> Identificação
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <Input
+                      label="CNPJ"
+                      name="cnpj"
+                      value={formData.cnpj}
+                      disabled
+                      icon={Hash}
+                    />
+                    
+                    <Input
+                      label="Email Institucional (Principal)"
+                      name="email_ins"
+                      value={formData.email_ins}
+                      disabled
+                      icon={Mail}
+                    />
+                    
+                    <Input
+                      label="Nome Fantasia"
+                      name="nome_ins"
+                      value={formData.nome_ins}
+                      onChange={handleChange}
+                      icon={Building2}
+                      required
+                    />
+
+                    <Input
+                      label="Razão Social"
+                      name="razao_soc"
+                      value={formData.razao_soc}
+                      onChange={handleChange}
+                      icon={FileText}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* 2. CONTATO & LOCALIZAÇÃO */}
+                <div>
+                  <h2 className="text-lg font-bold mb-4 flex items-center gap-2 border-b border-slate-100 pb-2">
+                     <MapPin size={20} className="text-emerald-500" /> Contato e Endereço
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <Input
+                      label="Telefone"
+                      name="telefone_ins"
+                      value={formData.telefone_ins}
+                      onChange={handleChange}
+                      icon={Phone}
+                    />
+
+                    <Input
+                      label="Endereço (Rua/Avenida)"
+                      name="endereco_ins"
+                      value={formData.endereco_ins}
+                      onChange={handleChange}
+                      icon={MapPin}
+                      required
+                    />
+
+                    <Input
+                      label="Número"
+                      name="numero_ins"
+                      value={formData.numero_ins}
+                      onChange={handleChange}
+                      icon={Hash}
+                      required
+                    />
+
+                    <Input
+                      label="Cidade"
+                      name="cidade_ins"
+                      value={formData.cidade_ins}
+                      onChange={handleChange}
+                      required
+                    />
+
+                    <Input
+                      label="UF"
+                      name="uf_ins"
+                      value={formData.uf_ins}
+                      maxLength={2}
+                      onChange={handleChange}
+                      required
+                    />
+                    <div></div> 
+
+                  </div>
+                </div>
+
+
+                {/* Rodapé do Formulário */}
+                <div className="flex justify-end pt-4 border-t border-slate-100">
+                  <div className="w-full md:w-auto md:min-w-[200px]">
+                    <Button type="submit" disabled={saving}>
+                      {saving ? (
+                         <>
+                         <svg className="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                         </svg>
+                         Salvando...
+                       </>
+                      ) : (
+                        <>
+                           <Save size={20} /> Salvar Alterações
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+              </form>
             </div>
           </div>
         </div>
-      )}
-
+      </main>
     </div>
   );
 }
